@@ -90,15 +90,16 @@ void init_idle (void)
         tsku->task.quantum = QUANTUM_DEFECTE;
 	
         cont_dir[calculate_DIR(tsk)] = 1;
-	tsk->num_read = 0;
+	tsk->info_key.toread = 0;
+    tsk->info_key.buffer =  NULL;
 	//Inicialitzem els stats
 	tsk->estats.user_ticks = 0;
-        tsk->estats.system_ticks = 0;
-        tsk->estats.blocked_ticks = 0;
+    tsk->estats.system_ticks = 0;
+    tsk->estats.blocked_ticks = 0;
   	tsk->estats.ready_ticks = 0;
-        tsk->estats.elapsed_total_ticks = get_ticks();
-        tsk->estats.total_trans = 0;
-        tsk->estats.remaining_ticks = 0;
+    tsk->estats.elapsed_total_ticks = get_ticks();
+    tsk->estats.total_trans = 0;
+    tsk->estats.remaining_ticks = 0;
 }
 
 void init_task1(void)
@@ -113,7 +114,8 @@ void init_task1(void)
 	tss.esp0 = &tsku->stack[KERNEL_STACK_SIZE];
 	set_cr3(tsk->dir_pages_baseAddr);
     	cont_dir[calculate_DIR(tsk)] = 1;
-	tsk->num_read = 0;
+	tsk->info_key.toread = 0;
+    tsk->info_key.buffer =  NULL;
 	//Inicialitzem els stats
 	tsk->estats.user_ticks = 0;
     	tsk->estats.system_ticks = 0;

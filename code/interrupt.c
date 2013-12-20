@@ -124,11 +124,26 @@ void keyboard_routine() {
       if (((c & 0x80) == 0)) {
             char cc = char_map[c&0x7f];
             if (cc !='\0') {
-                  keyboardbuffer[nextKey] = cc;
-		  ++nextKey;
+                  procesKey(cc);
             } else {
+                  procesKey('C');            
             }
       }
       else {
+            procesKey('E');
       }
+}
+
+void procesKey(char c) {
+    if (KEYBOARDBUFFER_SIZE > nextKey) {
+        keyboardbuffer[(firstKey + nextKey)%KEYBOARDBUFFER_SIZE] = c;
+		++nextKey;
+    }
+    if (!list_empty(&keyboardqueue)) {
+            struct list_head * lh = list_first(&keyboardqueue);
+            struct task_struct *tsk = list_head_to_task_struct(lh);
+            tsk->estat = ST_READY;
+            list_del(lh);        
+            list_add_tail(lh, &readyqueue);
+        }
 }

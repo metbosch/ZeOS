@@ -17,6 +17,11 @@
 
 enum state_t { ST_RUN, ST_READY, ST_BLOCKED, ST_ZOMBIE };
 
+struct infKey {
+    char *buffer;
+    int toread;
+};
+
 struct task_struct {
   int PID;			/* Process ID */
   page_table_entry * dir_pages_baseAddr;
@@ -26,7 +31,7 @@ struct task_struct {
   struct stats estats;
   enum state_t estat;
   int info_semf;
-  int num_read;
+  struct infKey info_key; 
 };
 
 union task_union {

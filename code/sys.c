@@ -25,8 +25,9 @@ void actualitzar_sistema_usuari(struct task_struct* tsk){
 
 int check_fd(int fd, int permissions)
 {
-  if (fd!=1) return -9; /*EBADF*/
-  if (permissions!=ESCRIPTURA) return -13; /*EACCES*/
+  if ((fd != 0) && (fd != 1)) return -9;
+  if ((fd == 0) && (permissions != LECTURA)) return -13;
+  if ((fd == 1) && (permissions!=ESCRIPTURA)) return -13; /*EACCES*/
   return 0;
 }
 
@@ -111,7 +112,8 @@ int sys_fork()
 
   //Actualitzem estats del fill
   tsku_fill->task.PID = PID;
-  tsku_fill->task.num_read = 0;
+  tsku_fill->task.info_key.toread = 0;
+  tsku_fill->task.info_key.buffer =  NULL;
   tsku_fill->task.estats.user_ticks = 0;
   tsku_fill->task.estats.system_ticks = 0;
   tsku_fill->task.estats.blocked_ticks = 0;
@@ -337,7 +339,8 @@ int sys_clone (void (*function)(void), void *stack) {
   ++cont_dir[calculate_DIR(&tsku_current->task)];
 
   //Actualitzem estats del fill
-  tsku_fill->task.num_read = 0;
+  tsku_fill->task.info_key.toread = 0;
+  tsku_fill->task.info_key.buffer =  NULL;
   tsku_fill->task.PID = PID;
   tsku_fill->task.estats.user_ticks = 0;
   tsku_fill->task.estats.system_ticks = 0;
@@ -356,51 +359,102 @@ int sys_clone (void (*function)(void), void *stack) {
 int sys_read(int fd, char * buffer, int count) {
       actualitzar_usuari_sistema(current());
       int size_original = count;
-      int check = check_fd(fd, ESCRIPTURA);
-      if(check != 0) return check;
+      int check = check_fd(fd, LECTURA);
+      
+      if(check_fd(fd,LECTURA) != 0) return check;
       if (buffer == NULL) return -EFAULT;
+      if (!access_ok(VERIFY_WRITE, buffer,count)) return -EFAULT;
       if (count < 0) return -EINVAL;
-      
-      
-      if (count != 0) return -ENODEV;
+      if (count == 0) return -ENODEV;
       else {
-	      actualitzar_sistema_usuari(current());
+          int num = sys_read_keyboard(buffer,count);	      
+          actualitzar_sistema_usuari(current());
 	      return num;
       }
 }
 
-int min(int a, int b) {
+int minim(int a, int b) {
     if (a <= b) return a;
     return b;
 }
 
 
 int sys_read_keyboard(char * buffer, int count) {
-    if (list_empty(&keyboardqueue)) {
-        if (nextKey == KEYBOARDBUFFER_SIZE) {
-            //PCB falta guardar on seguir escriquent i lo que falta per llegir
-        }      
+    int check;
+    current()->info_key.toread = count;
+    current()->info_key.buffer = buffer;
+    if (list_empty(&keyboardqueue)) {  
         if (count <= nextKey) {
-            int tmp = min(KEYBOARDBUFFER_SIZE - firstKey, count);
+        // Hi ha suficents dades
+            int tmp = minim(KEYBOARDBUFFER_SIZE - firstKey, count);
             check = copy_to_user(&keyboardbuffer[firstKey], buffer, tmp);
+            if (check < 0) return check;
             nextKey -= tmp;
             firstKey = (firstKey + tmp)%KEYBOARDBUFFER_SIZE;
 
             check = copy_to_user(&keyboardbuffer[firstKey], &buffer[tmp], count - tmp);
+            if (check < 0) return check;
             tmp = count - tmp;
             nextKey -= tmp;
             firstKey = (firstKey + tmp)%KEYBOARDBUFFER_SIZE;
+
+            current()->info_key.toread = 0;
+            current()->info_key.buffer =  NULL;
         }
         else {
-        }
-        int num = 0;
-        while(count > 0 && firstKey != nextKey) {
-         	check = copy_to_user(&keyboardbuffer[firstKey], buffer, 1);
-        	buffer += 1;
-        	firstKey = (++firstKey)%KEYBOARDBUFFER_SIZE;
-        	count -= 1;
+            while (current()->info_key.toread > 0) {
+                int tmp = minim(KEYBOARDBUFFER_SIZE - firstKey, nextKey);
+                tmp = minim(tmp, current()->info_key.toread);
+                check = copy_to_user(&keyboardbuffer[firstKey], current()->info_key.buffer, tmp);
+                if (check < 0) return check;
+                nextKey -= tmp;
+                firstKey = (firstKey + tmp)%KEYBOARDBUFFER_SIZE;
+                
+                int tmp2 = min(nextKey, current()->info_key.toread - tmp);
+                check = copy_to_user(&keyboardbuffer[firstKey], &current()->info_key.buffer[tmp], tmp2);
+                if (check < 0) return check;
+                tmp += tmp2;
+                nextKey = nextKey - tmp;
+                firstKey = (firstKey + tmp2)%KEYBOARDBUFFER_SIZE;
+    
+                current()->info_key.toread -= tmp;
+                current()->info_key.buffer = &(current()->info_key.buffer[tmp]);
+	    	    update_current_state_rr(&keyboardqueue);
+                sched_next_rr();
+            }
         }
     }
+    else {
+		current()->info_key.buffer = buffer;
+        current()->info_key.toread = count;
+		update_current_state_rr(&keyboardqueue);
+        sched_next_rr();
+        while (current()->info_key.toread > 0) {
+                int tmp = minim(KEYBOARDBUFFER_SIZE - firstKey, nextKey);
+                tmp = minim(tmp, current()->info_key.toread);
+                check = copy_to_user(&keyboardbuffer[firstKey], current()->info_key.buffer, tmp);
+                if (check < 0) return check;
+                nextKey -= tmp;
+                firstKey = (firstKey + tmp)%KEYBOARDBUFFER_SIZE;
+                
+                int tmp2 = min(nextKey, current()->info_key.toread - tmp);
+                check = copy_to_user(&keyboardbuffer[firstKey], &current()->info_key.buffer[tmp], tmp2);
+                if (check < 0) return check;
+                tmp += tmp2;
+                nextKey = nextKey - tmp;
+                firstKey = (firstKey + tmp2)%KEYBOARDBUFFER_SIZE;
+    
+                current()->info_key.toread -= tmp;
+                current()->info_key.buffer = &(current()->info_key.buffer[tmp]);
+	    	    update_current_state_rr(&keyboardqueue);
+                sched_next_rr();
+            }
+    }
+    return count;
+}
+
+void * sys_sbrk(int increment) {
+    int HeapStart = NUM_PAG_KERNEL + NUM_PAG_CODE + NUM_PAG_DATA + 1;
 }
 
 

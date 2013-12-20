@@ -12,6 +12,9 @@
 struct task_struct * idle_task;
 int nextFreePID = 2;
 int currentQuantum;
+struct semaphore semf[MAX_NUM_SEMAPHORES];
+int cont_dir[NR_TASKS];
+
 
 union task_union task[NR_TASKS]
   __attribute__((__section__(".data.task")));
@@ -21,9 +24,6 @@ struct task_struct *list_head_to_task_struct(struct list_head *l)
 {
   return list_entry( l, struct task_struct, list);
 }
-
-extern struct list_head blocked;
-
 
 /* get_DIR - Returns the Page Directory address for task 't' */
 page_table_entry * get_DIR (struct task_struct *t) 
@@ -40,13 +40,27 @@ page_table_entry * get_PT (struct task_struct *t)
 
 int allocate_DIR(struct task_struct *t) 
 {
-	int pos;
+	/*int pos;
 
 	pos = ((int)t-(int)task)/sizeof(union task_union);
 
-	t->dir_pages_baseAddr = (page_table_entry*) &dir_pages[pos]; 
-
+	t->dir_pages_baseAddr = (page_table_entry*) &dir_pages[pos]; */
+    int i;
+    for (i = 0; i < NR_TASKS; ++i) {
+        if (cont_dir[i] == 0) {
+            t->dir_pages_baseAddr = (page_table_entry*) &dir_pages[i];
+            return 1;
+        }
+    }
 	return 1;
+}
+
+int calculate_DIR(struct task_struct *t) 
+{
+    int ini, tsk;
+    ini = (int)((page_table_entry*) &dir_pages[0]);
+    tsk = (int)t->dir_pages_baseAddr;
+    return (tsk - ini)/sizeof(dir_pages[0]);
 }
 
 void cpu_idle(void)
@@ -63,14 +77,16 @@ void init_idle (void)
 	struct list_head * lh = list_first(&freequeue);
 	struct task_struct * tsk = list_head_to_task_struct(lh);
 	list_del(lh);
-  tsk->PID = 0;
-	idle_task = tsk;
+    tsk->PID = 0;
+    idle_task = tsk;
 	union task_union * tsku = (union task_union *)idle_task;
 	tsku->stack[KERNEL_STACK_SIZE-1] = &cpu_idle;
 	tsku->stack[KERNEL_STACK_SIZE-2] = 0;
+
 	idle_task->pointer = &tsku->stack[KERNEL_STACK_SIZE-2];
-  tsku->task.quantum = QUANTUM_DEFECTE;
+    tsku->task.quantum = QUANTUM_DEFECTE;
 	
+    cont_dir[calculate_DIR(tsk)] = 1;
 	//Inicialitzem els stats
 	tsk->estats.user_ticks = 0;
   tsk->estats.system_ticks = 0;
@@ -86,16 +102,16 @@ void init_task1(void)
 	struct list_head * lh = list_first(&freequeue);
 	struct task_struct * tsk = list_head_to_task_struct(lh);
 	list_del(lh);
-  tsk->PID = 1;
+    tsk->PID = 1;
 	set_user_pages(tsk);
-  tsk->quantum = QUANTUM_DEFECTE;
+    tsk->quantum = QUANTUM_DEFECTE;
 	union task_union * tsku = (union task_union *)tsk;
 	tss.esp0 = &tsku->stack[KERNEL_STACK_SIZE];
 	set_cr3(tsk->dir_pages_baseAddr);
-
+    cont_dir[calculate_DIR(tsk)] = 1;
 	//Inicialitzem els stats
 	tsk->estats.user_ticks = 0;
-  tsk->estats.system_ticks = 0;
+    tsk->estats.system_ticks = 0;
  	tsk->estats.blocked_ticks = 0;
  	tsk->estats.ready_ticks = 0;
  	tsk->estats.elapsed_total_ticks = get_ticks();
@@ -110,13 +126,14 @@ void init_sched(){
     INIT_LIST_HEAD(&freequeue);
     for (i = 0; i < NR_TASKS; ++i) {
         list_add_tail(&(task[i].task.list), &freequeue);
+        cont_dir[i] = 0;
     }
     currentQuantum = QUANTUM_DEFECTE;
 }
 
 void inner_task_switch(union task_union*t){
 	void * old = current()->pointer;
-	void * new = (t->task).pointer;
+	void * new = (t->task).pointer;    
 	__asm__ __volatile__(
 		"movl %%ebp,%0;"
 		"movl %1,%%esp;"
@@ -188,7 +205,15 @@ void update_current_state_rr(struct list_head *dest) {
      tsk->estats.system_ticks += get_ticks()-tsk->estats.elapsed_total_ticks;
      tsk->estats.elapsed_total_ticks = get_ticks();
      tsk->estat = ST_READY;
-  } else if (dest == &freequeue) tsk->estat = ST_ZOMBIE;
+  }
+  else if (dest == &freequeue) {
+    tsk->estat = ST_ZOMBIE;
+  }
+  else {
+    tsk->estats.system_ticks += get_ticks()-tsk->estats.elapsed_total_ticks;
+    tsk->estats.elapsed_total_ticks = get_ticks();
+    tsk->estat = ST_BLOCKED;
+  }
   list_add_tail(lh, dest);
 }
 

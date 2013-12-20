@@ -1,5 +1,6 @@
 #include<list.h>
 #include<errors.h>
+#include <sched.h>
 
 //FUNCTIONS
 void clock_handler();
@@ -16,3 +17,6 @@ extern struct task_struct * idle_task;
 extern int nextFreePID;
 extern int currentQuantum;
 extern char *errors[];
+extern struct semaphore semf[MAX_NUM_SEMAPHORES];
+extern struct list_head blocked;
+extern int cont_dir[NR_TASKS];

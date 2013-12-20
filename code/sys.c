@@ -361,7 +361,7 @@ int sys_read(int fd, char * buffer, int count) {
       int size_original = count;
       int check = check_fd(fd, LECTURA);
       
-      if(check_fd(fd,LECTURA) != 0) return check;
+      if(check_fd(fd,LECTURA) != 0) return -EBADF;
       if (buffer == NULL) return -EFAULT;
       if (!access_ok(VERIFY_WRITE, buffer,count)) return -EFAULT;
       if (count < 0) return -EINVAL;
@@ -461,42 +461,56 @@ int sup(int x, int y) {
 void * sys_sbrk(int increment) {
     int HeapStart = (NUM_PAG_KERNEL + NUM_PAG_CODE + NUM_PAG_DATA)*PAGE_SIZE;
     if (current()->inici_heap == NULL) {
-	int frame = alloc_frame();
-	set_ss_pag(get_PT(current()), HeapStart/PAGE_SIZE, frame);
-	current()->inici_heap = HeapStart;
-	current()->numPagesHeap = 1;
+	    int frame = alloc_frame();
+	    if (frame < 0) return frame;
+	    set_ss_pag(get_PT(current()), HeapStart/PAGE_SIZE, frame);
+	    current()->inici_heap = HeapStart;
+	    current()->numPagesHeap = 1;
     }
     if (increment == 0) {
-	return (current()->inici_heap + current()->bytesHeap);
+	    return (current()->inici_heap + current()->bytesHeap);
     }
     else if (increment > 0) {
         void * old = current()->inici_heap + current()->bytesHeap;
-	if ((current()->bytesHeap)%PAGE_SIZE + increment < PAGE_SIZE) {
-		current()->bytesHeap += increment;
-	}
-	else {
-		int i;
-		for (i = 0; i < increment/PAGE_SIZE; ++i) {
-			int frame = alloc_frame();
-			set_ss_pag(get_PT(current()), (HeapStart + current()->numPagesHeap)/PAGE_SIZE, frame);
-			current()->numPagesHeap++;
-		}
-		if ((current()->numPagesHeap*PAGE_SIZE)-current()->bytesHeap < increment) {
-			int frame = alloc_frame();
-			set_ss_pag(get_PT(current()), (HeapStart + current()->numPagesHeap)/PAGE_SIZE, frame);
-			current()->numPagesHeap++;
-		} 
-		current()->bytesHeap += increment;
-	}
-	return old;
+	    if ((current()->bytesHeap)%PAGE_SIZE + increment < PAGE_SIZE) {
+	    	current()->bytesHeap += increment;
+	    }
+   	    else {
+	    	current()->bytesHeap += increment;
+	    	while((current()->numPagesHeap*PAGE_SIZE) < current()->bytesHeap) {
+	    		int frame = alloc_frame();
+	    		if (frame < 0) {
+	    			current()->bytesHeap -= increment;
+	    			while((current()->numPagesHeap*PAGE_SIZE)-current()->bytesHeap > PAGE_SIZE) {
+                        free_frame(get_frame(get_PT(current()), HeapStart/PAGE_SIZE + current()->numPagesHeap - 1));
+	    				del_ss_pag(get_PT(current()), ((HeapStart/PAGE_SIZE) + current()->numPagesHeap)- 1);
+	    				current()->numPagesHeap--;
+	    			}
+	    			return frame;
+	    		}
+	    		set_ss_pag(get_PT(current()), ((HeapStart/PAGE_SIZE) + current()->numPagesHeap), frame);
+	    		current()->numPagesHeap++;
+	    	}
+	    }
+	    return old;
+    }
+    else if (current()->bytesHeap + increment < 0) {
+        current()->bytesHeap = 0;
+        while((current()->numPagesHeap) > 0) {
+            free_frame(get_frame(get_PT(current()), HeapStart/PAGE_SIZE + current()->numPagesHeap - 1));
+	    	del_ss_pag(get_PT(current()), ((HeapStart/PAGE_SIZE) + current()->numPagesHeap)- 1);
+	    	current()->numPagesHeap--;
+	    }
+        return current()->inici_heap;
     }
     else {
-	current()->bytesHeap += increment;
-	while((current()->numPagesHeap*PAGE_SIZE)-current()->bytesHeap > PAGE_SIZE) {
-		del_ss_pag(get_PT(current()), ((HeapStart + current()->numPagesHeap)/PAGE_SIZE)- 1);
-		current()->numPagesHeap--;
-	}
-	return current()->inici_heap + current()->bytesHeap;
+	    current()->bytesHeap += increment;
+	    while((current()->numPagesHeap*PAGE_SIZE)-current()->bytesHeap > PAGE_SIZE) {
+            free_frame(get_frame(get_PT(current()), HeapStart/PAGE_SIZE + current()->numPagesHeap - 1));
+	    	del_ss_pag(get_PT(current()), ((HeapStart/PAGE_SIZE) + current()->numPagesHeap)- 1);
+	    	current()->numPagesHeap--;
+	    }
+	    return current()->inici_heap + current()->bytesHeap;
     }
 
 }

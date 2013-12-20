@@ -11,7 +11,6 @@
 #include <io.h>
 #include <utils.h>
 #include <capsaleres.h>
-#include <zeos_mm.h> /* TO BE DELETED WHEN ADDED THE PROCESS MANAGEMENT CODE TO BECOME MULTIPROCESS */
 
 
 int (*usr_main)(void) = (void *) PH_USER_START;
@@ -100,7 +99,7 @@ int __attribute__((__section__(".text.main")))
   /* Move user code/data now (after the page table initialization) */
   copy_data((void *) KERNEL_START + *p_sys_size, usr_main, *p_usr_size);
   
-//  zeos_init_auxjp();
+  zeos_init_auxjp();
   printk("Entering user mode..."); 
   
   enable_int();

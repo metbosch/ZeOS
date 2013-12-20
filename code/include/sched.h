@@ -8,9 +8,11 @@
 #include <list.h>
 #include <types.h>
 #include <mm_address.h>
+#include <stats.h>
 
 #define NR_TASKS      10
 #define KERNEL_STACK_SIZE	1024
+#define QUANTUM_DEFECTE 20
 
 enum state_t { ST_RUN, ST_READY, ST_BLOCKED, ST_ZOMBIE };
 
@@ -20,6 +22,7 @@ struct task_struct {
   struct list_head list;
   void * pointer;
   unsigned int quantum;
+  struct stats estats;
 };
 
 union task_union {

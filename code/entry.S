@@ -4,7 +4,7 @@
 
 #include <asm.h>
 #include <segment.h>
-
+#include <errno.h>
 
 /**************************************************/
 /**** Save & Restore ******************************/
@@ -89,7 +89,7 @@ ENTRY(system_call_handler)
       SAVE_ALL
       cmpl $0, %eax
       jl err                             // If it is, jump to return an error
-      cmpl $MAX_SYSCALL, %eax            // Is syscall greater than MAX_SYSCALL (4)?
+      cmpl $40, %eax            // Is syscall greater than MAX_SYSCALL (4)?
       jg err                             // If it is, jump to return an error
       call *sys_call_table(, %eax, 0x04) // Call the corresponding service routine
       jmp fin                            // Finish

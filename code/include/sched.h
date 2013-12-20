@@ -31,7 +31,10 @@ struct task_struct {
   struct stats estats;
   enum state_t estat;
   int info_semf;
-  struct infKey info_key; 
+  struct infKey info_key;
+  void * inici_heap;
+  int bytesHeap;
+  int numPagesHeap;
 };
 
 union task_union {

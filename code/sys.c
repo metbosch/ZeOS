@@ -53,7 +53,7 @@ int ret_from_fork() {
 int sys_fork()
 {
   actualitzar_usuari_sistema(current());
-  int new_frames[NUM_PAG_DATA];
+  int new_frames[NUM_PAG_DATA + current()->numPagesHeap];
   int pag, PID, error;
 
   if (list_empty(&freequeue)){
@@ -61,7 +61,7 @@ int sys_fork()
 	return -EAGAIN;
   }  
  //Reservem frames en cas de que no nhi hagui prou els llibrem i retornem error 
-  for (pag=0;pag<NUM_PAG_DATA;pag++){
+  for (pag=0;pag<NUM_PAG_DATA + current()->numPagesHeap;pag++){
     new_frames[pag] = alloc_frame();
     if (new_frames[pag] < 0) {
       for (error = pag - 1; error >= 0; error--) {
@@ -90,8 +90,8 @@ int sys_fork()
     set_ss_pag(taulaP_fill, pag, frame);
   }
   //Copiem les pagines de dades
-  int end = NUM_PAG_KERNEL + NUM_PAG_CODE + NUM_PAG_DATA + 1;
-  for (pag=0;pag<NUM_PAG_DATA;pag++){
+  int end = NUM_PAG_KERNEL + NUM_PAG_CODE + NUM_PAG_DATA + 1 + tsku_current->task.numPagesHeap;
+  for (pag=0;pag<NUM_PAG_DATA + tsku_current->task.numPagesHeap;pag++){
     set_ss_pag(taulaP_fill, NUM_PAG_KERNEL + NUM_PAG_CODE + pag, new_frames[pag]);
     set_ss_pag(taulaP_current, end + pag, new_frames[pag]);
     copy_data((void*)((NUM_PAG_KERNEL + NUM_PAG_CODE + pag)*PAGE_SIZE), (void*)((end + pag)*PAGE_SIZE), PAGE_SIZE);
@@ -453,8 +453,52 @@ int sys_read_keyboard(char * buffer, int count) {
     return count;
 }
 
+int sup(int x, int y) {
+	if (x%y == 0) return x/y;
+	return (x/y + 1);
+}
+
 void * sys_sbrk(int increment) {
-    int HeapStart = NUM_PAG_KERNEL + NUM_PAG_CODE + NUM_PAG_DATA + 1;
+    int HeapStart = (NUM_PAG_KERNEL + NUM_PAG_CODE + NUM_PAG_DATA)*PAGE_SIZE;
+    if (current()->inici_heap == NULL) {
+	int frame = alloc_frame();
+	set_ss_pag(get_PT(current()), HeapStart/PAGE_SIZE, frame);
+	current()->inici_heap = HeapStart;
+	current()->numPagesHeap = 1;
+    }
+    if (increment == 0) {
+	return (current()->inici_heap + current()->bytesHeap);
+    }
+    else if (increment > 0) {
+        void * old = current()->inici_heap + current()->bytesHeap;
+	if ((current()->bytesHeap)%PAGE_SIZE + increment < PAGE_SIZE) {
+		current()->bytesHeap += increment;
+	}
+	else {
+		int i;
+		for (i = 0; i < increment/PAGE_SIZE; ++i) {
+			int frame = alloc_frame();
+			set_ss_pag(get_PT(current()), (HeapStart + current()->numPagesHeap)/PAGE_SIZE, frame);
+			current()->numPagesHeap++;
+		}
+		if ((current()->numPagesHeap*PAGE_SIZE)-current()->bytesHeap < increment) {
+			int frame = alloc_frame();
+			set_ss_pag(get_PT(current()), (HeapStart + current()->numPagesHeap)/PAGE_SIZE, frame);
+			current()->numPagesHeap++;
+		} 
+		current()->bytesHeap += increment;
+	}
+	return old;
+    }
+    else {
+	current()->bytesHeap += increment;
+	while((current()->numPagesHeap*PAGE_SIZE)-current()->bytesHeap > PAGE_SIZE) {
+		del_ss_pag(get_PT(current()), ((HeapStart + current()->numPagesHeap)/PAGE_SIZE)- 1);
+		current()->numPagesHeap--;
+	}
+	return current()->inici_heap + current()->bytesHeap;
+    }
+
 }
 
 

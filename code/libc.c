@@ -271,6 +271,24 @@ int read(int fd, char *buffer, int count) {
     }
 }
 
+void *sbrk(int increment) {
+     int ret = -1;
+     __asm__ __volatile__ (
+          "movl %1, %%ebx;"
+	  "movl $6, %%eax;"
+	  "int $0x80;"
+	  "movl %%eax, %0;"
+	      : "=g" (ret)
+        : "g" (increment)
+        : "ax", "bx"
+    );
+    if(ret >= 0) return ret;
+    else {
+        errno = -ret;
+	return -1;
+    }
+}
+
 
 
 

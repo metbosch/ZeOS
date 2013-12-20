@@ -14,8 +14,8 @@
  .long sys_fork
  .long sys_ni_syscall
  .long sys_write
- .long sys_ni_syscall
- .long sys_ni_syscall
+ .long sys_read
+ .long sys_sbrk
  .long sys_ni_syscall
  .long sys_ni_syscall
  .long sys_ni_syscall
@@ -28,8 +28,12 @@
  .long sys_ni_syscall
  .long sys_ni_syscall
  .long sys_ni_syscall
- .long sys_ni_syscall
+ .long sys_clone
  .long sys_getpid
+ .long sys_sem_init
+ .long sys_sem_wait
+ .long sys_sem_signal
+ .long sys_sem_destroy
  .long sys_ni_syscall
  .long sys_ni_syscall
  .long sys_ni_syscall
@@ -40,11 +44,7 @@
  .long sys_ni_syscall
  .long sys_ni_syscall
  .long sys_ni_syscall
- .long sys_ni_syscall
- .long sys_ni_syscall
- .long sys_ni_syscall
- .long sys_ni_syscall
- .long sys_ni_syscall
+ .long sys_get_stats
  .long sys_ni_syscall
  .long sys_ni_syscall
  .long sys_ni_syscall

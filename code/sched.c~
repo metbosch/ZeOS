@@ -92,9 +92,6 @@ void init_idle (void)
         cont_dir[calculate_DIR(tsk)] = 1;
 	tsk->info_key.toread = 0;
     tsk->info_key.buffer =  NULL;
-	tsk->inici_heap = NULL;
-	tsk->bytesHeap = 0;
-	tsk->numPagesHeap = 0;
 	//Inicialitzem els stats
 	tsk->estats.user_ticks = 0;
     tsk->estats.system_ticks = 0;
@@ -119,10 +116,6 @@ void init_task1(void)
     	cont_dir[calculate_DIR(tsk)] = 1;
 	tsk->info_key.toread = 0;
     tsk->info_key.buffer =  NULL;
-
-	tsk->inici_heap = NULL;
-	tsk->bytesHeap = 0;
-	tsk->numPagesHeap = 0;
 	//Inicialitzem els stats
 	tsk->estats.user_ticks = 0;
     	tsk->estats.system_ticks = 0;

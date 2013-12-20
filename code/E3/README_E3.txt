@@ -17,3 +17,16 @@ Test[13]: SEM_WAIT RETURN VALUE ON SUCCESS : sem_signal,sem_init,sem_wait, sem_d
 Test[14]: SEM_DESTROY(busy semaphore) : sem_wait, sem_signal, sem_init, sem_destroy,nice
 Test[15]: SEM_DESTROY(busy semaphore):unblock sem_wait : fork, sem_wait, sem_signal, sem_init, sem_destroy,nice
 Test[16]: SYNCHRONIZING SEVERAL PROCESSES : sem_signal,sem_init,sem_wait, sem_destroy, fork, exit
+
+CLONE
+Test[0]: clone(invalid function address) 
+Test[1]: clone(invalid stack address) : exit
+Test[2]: clone(OK) : exit
+Test[3]: clone()shares memory : exit, sem_init, sem_wait, sem_signal, sem_destroy
+Test[4]: fork()does not share memory : fork, exit, sem_init, sem_wait, sem_signal, sem_destroy
+Test[5]: clone many threads (single) : exit, sem_init, sem_wait, sem_signal, sem_destroy
+Test[6]: clone maximum threads  : exit, sem_init, sem_wait, sem_signal, sem_destroy
+Test[7]: clone many threads (maximum)  : exit, sem_init, sem_wait, sem_signal, sem_destroy
+Test[8]: fork after clone  : exit, fork, sem_init, sem_wait, sem_signal, sem_destroy
+Test[9]: fork inside clone  : exit, fork, sem_init, sem_wait, sem_signal, sem_destroy
+

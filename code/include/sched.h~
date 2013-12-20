@@ -13,6 +13,7 @@
 #define NR_TASKS      10
 #define KERNEL_STACK_SIZE	1024
 #define QUANTUM_DEFECTE 20
+#define KEYBOARDBUFFER_SIZE 512
 
 enum state_t { ST_RUN, ST_READY, ST_BLOCKED, ST_ZOMBIE };
 
@@ -34,7 +35,7 @@ union task_union {
 
 struct semaphore {
     int cont;
-    struct list_head *tasks;
+    struct list_head tasks;
     struct task_struct *owner;
 };
 

@@ -80,7 +80,6 @@ void setIdt()
   /* Program interrups/exception service routines */
   idtR.base  = (DWord)idt;
   idtR.limit = IDT_ENTRIES * sizeof(Gate) - 1;
-  
   set_handlers();
 
   /* ADD INITIALIZATION CODE FOR INTERRUPT VECTOR */
@@ -105,10 +104,10 @@ void clock_routine()
 }
 
 
-void keyboard_routine() {
+/*void keyboard_routine() {
       unsigned char c = inb(0x60);
       if (((c & 0x80) == 0)) {
-                  char cc = char_map[c&0x7f];
+            char cc = char_map[c&0x7f];
             if (cc !='\0') {
                   printc_xy(0, 0, cc);
             } else {
@@ -117,5 +116,19 @@ void keyboard_routine() {
       }
       else {
             printc_xy(0, 0, 'E');
+      }
+}*/
+
+void keyboard_routine() {
+      unsigned char c = inb(0x60);
+      if (((c & 0x80) == 0)) {
+            char cc = char_map[c&0x7f];
+            if (cc !='\0') {
+                  keyboardbuffer[nextKey] = cc;
+		  ++nextKey;
+            } else {
+            }
+      }
+      else {
       }
 }

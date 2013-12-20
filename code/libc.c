@@ -251,6 +251,26 @@ int clone (void (*function)(void), void *stack) {
     }
 }
 
+int read(int fd, char *buffer, int count) {
+     int ret = -1;
+     __asm__ __volatile__ (
+          "movl %1, %%ebx;"
+	      "movl %2, %%ecx;"
+	      "movl %3, %%edx;"
+	      "movl $5, %%eax;"
+	      "int $0x80;"
+	      "movl %%eax, %0;"
+	      : "=g" (ret)
+          : "g" (fd), "g"(buffer), "g" (count)
+          : "ax", "bx", "cx", "dx"
+    );
+    if(ret >= 0) return ret;
+    else {
+	errno = -ret;
+	return -1;
+    }
+}
+
 
 
 

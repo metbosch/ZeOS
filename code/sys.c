@@ -111,6 +111,7 @@ int sys_fork()
 
   //Actualitzem estats del fill
   tsku_fill->task.PID = PID;
+  tsku_fill->task.num_read = 0;
   tsku_fill->task.estats.user_ticks = 0;
   tsku_fill->task.estats.system_ticks = 0;
   tsku_fill->task.estats.blocked_ticks = 0;
@@ -328,6 +329,7 @@ int sys_clone (void (*function)(void), void *stack) {
   tsku_fill->task.pointer = &tsku_fill->stack[KERNEL_STACK_SIZE-19];
   tsku_fill->stack[KERNEL_STACK_SIZE-5] = function;
   tsku_fill->stack[KERNEL_STACK_SIZE-2] = stack;
+  
 
   //Assignem nou PID
   PID = nextFreePID;
@@ -335,6 +337,7 @@ int sys_clone (void (*function)(void), void *stack) {
   ++cont_dir[calculate_DIR(&tsku_current->task)];
 
   //Actualitzem estats del fill
+  tsku_fill->task.num_read = 0;
   tsku_fill->task.PID = PID;
   tsku_fill->task.estats.user_ticks = 0;
   tsku_fill->task.estats.system_ticks = 0;
@@ -350,6 +353,55 @@ int sys_clone (void (*function)(void), void *stack) {
 }
 
 
+int sys_read(int fd, char * buffer, int count) {
+      actualitzar_usuari_sistema(current());
+      int size_original = count;
+      int check = check_fd(fd, ESCRIPTURA);
+      if(check != 0) return check;
+      if (buffer == NULL) return -EFAULT;
+      if (count < 0) return -EINVAL;
+      
+      
+      if (count != 0) return -ENODEV;
+      else {
+	      actualitzar_sistema_usuari(current());
+	      return num;
+      }
+}
+
+int min(int a, int b) {
+    if (a <= b) return a;
+    return b;
+}
+
+
+int sys_read_keyboard(char * buffer, int count) {
+    if (list_empty(&keyboardqueue)) {
+        if (nextKey == KEYBOARDBUFFER_SIZE) {
+            //PCB falta guardar on seguir escriquent i lo que falta per llegir
+        }      
+        if (count <= nextKey) {
+            int tmp = min(KEYBOARDBUFFER_SIZE - firstKey, count);
+            check = copy_to_user(&keyboardbuffer[firstKey], buffer, tmp);
+            nextKey -= tmp;
+            firstKey = (firstKey + tmp)%KEYBOARDBUFFER_SIZE;
+
+            check = copy_to_user(&keyboardbuffer[firstKey], &buffer[tmp], count - tmp);
+            tmp = count - tmp;
+            nextKey -= tmp;
+            firstKey = (firstKey + tmp)%KEYBOARDBUFFER_SIZE;
+        }
+        else {
+        }
+        int num = 0;
+        while(count > 0 && firstKey != nextKey) {
+         	check = copy_to_user(&keyboardbuffer[firstKey], buffer, 1);
+        	buffer += 1;
+        	firstKey = (++firstKey)%KEYBOARDBUFFER_SIZE;
+        	count -= 1;
+        }
+    }
+}
 
 
 

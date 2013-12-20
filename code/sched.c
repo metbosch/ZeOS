@@ -9,12 +9,15 @@
 #include <capsaleres.h>
 
 
+
+
 struct task_struct * idle_task;
 int nextFreePID = 2;
 int currentQuantum;
 struct semaphore semf[MAX_NUM_SEMAPHORES];
 int cont_dir[NR_TASKS];
-
+char keyboardbuffer[KEYBOARDBUFFER_SIZE];
+int nextKey, firstKey;
 
 union task_union task[NR_TASKS]
   __attribute__((__section__(".data.task")));
@@ -77,24 +80,25 @@ void init_idle (void)
 	struct list_head * lh = list_first(&freequeue);
 	struct task_struct * tsk = list_head_to_task_struct(lh);
 	list_del(lh);
-    tsk->PID = 0;
-    idle_task = tsk;
+        tsk->PID = 0;
+        idle_task = tsk;
 	union task_union * tsku = (union task_union *)idle_task;
 	tsku->stack[KERNEL_STACK_SIZE-1] = &cpu_idle;
 	tsku->stack[KERNEL_STACK_SIZE-2] = 0;
 
 	idle_task->pointer = &tsku->stack[KERNEL_STACK_SIZE-2];
-    tsku->task.quantum = QUANTUM_DEFECTE;
+        tsku->task.quantum = QUANTUM_DEFECTE;
 	
-    cont_dir[calculate_DIR(tsk)] = 1;
+        cont_dir[calculate_DIR(tsk)] = 1;
+	tsk->num_read = 0;
 	//Inicialitzem els stats
 	tsk->estats.user_ticks = 0;
-  tsk->estats.system_ticks = 0;
-  tsk->estats.blocked_ticks = 0;
-  tsk->estats.ready_ticks = 0;
-  tsk->estats.elapsed_total_ticks = get_ticks();
-  tsk->estats.total_trans = 0;
-  tsk->estats.remaining_ticks = 0;
+        tsk->estats.system_ticks = 0;
+        tsk->estats.blocked_ticks = 0;
+  	tsk->estats.ready_ticks = 0;
+        tsk->estats.elapsed_total_ticks = get_ticks();
+        tsk->estats.total_trans = 0;
+        tsk->estats.remaining_ticks = 0;
 }
 
 void init_task1(void)
@@ -102,16 +106,17 @@ void init_task1(void)
 	struct list_head * lh = list_first(&freequeue);
 	struct task_struct * tsk = list_head_to_task_struct(lh);
 	list_del(lh);
-    tsk->PID = 1;
+    	tsk->PID = 1;
 	set_user_pages(tsk);
-    tsk->quantum = QUANTUM_DEFECTE;
+    	tsk->quantum = QUANTUM_DEFECTE;
 	union task_union * tsku = (union task_union *)tsk;
 	tss.esp0 = &tsku->stack[KERNEL_STACK_SIZE];
 	set_cr3(tsk->dir_pages_baseAddr);
-    cont_dir[calculate_DIR(tsk)] = 1;
+    	cont_dir[calculate_DIR(tsk)] = 1;
+	tsk->num_read = 0;
 	//Inicialitzem els stats
 	tsk->estats.user_ticks = 0;
-    tsk->estats.system_ticks = 0;
+    	tsk->estats.system_ticks = 0;
  	tsk->estats.blocked_ticks = 0;
  	tsk->estats.ready_ticks = 0;
  	tsk->estats.elapsed_total_ticks = get_ticks();
@@ -119,11 +124,18 @@ void init_task1(void)
  	tsk->estats.remaining_ticks = QUANTUM_DEFECTE;
 }
 
+void init_keyboard() {
+    INIT_LIST_HEAD(&keyboardqueue);
+    nextKey = 0;
+    firstKey = 0;
+}
+
 
 void init_sched(){
     int i;
     INIT_LIST_HEAD(&readyqueue);
     INIT_LIST_HEAD(&freequeue);
+    init_keyboard();
     for (i = 0; i < NR_TASKS; ++i) {
         list_add_tail(&(task[i].task.list), &freequeue);
         cont_dir[i] = 0;
@@ -234,7 +246,6 @@ int get_quantum (struct task_struct *t) {
 void set_quantum (struct task_struct *t, int new_quantum) {
   t->quantum = new_quantum;
 }
-
 
 
 

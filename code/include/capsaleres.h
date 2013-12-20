@@ -20,3 +20,6 @@ extern char *errors[];
 extern struct semaphore semf[MAX_NUM_SEMAPHORES];
 extern struct list_head blocked;
 extern int cont_dir[NR_TASKS];
+extern struct list_head keyboardqueue;
+extern char keyboardbuffer[512];
+extern int nextKey, firstKey;

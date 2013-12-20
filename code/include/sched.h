@@ -13,6 +13,7 @@
 #define NR_TASKS      10
 #define KERNEL_STACK_SIZE	1024
 #define QUANTUM_DEFECTE 20
+#define KEYBOARDBUFFER_SIZE 512
 
 enum state_t { ST_RUN, ST_READY, ST_BLOCKED, ST_ZOMBIE };
 
@@ -25,6 +26,7 @@ struct task_struct {
   struct stats estats;
   enum state_t estat;
   int info_semf;
+  int num_read;
 };
 
 union task_union {

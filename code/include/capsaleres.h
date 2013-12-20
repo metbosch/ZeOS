@@ -1,4 +1,5 @@
 #include<list.h>
+#include<errors.h>
 
 //FUNCTIONS
 void clock_handler();
@@ -14,3 +15,4 @@ extern TSS tss;
 extern struct task_struct * idle_task;
 extern int nextFreePID;
 extern int currentQuantum;
+extern char *errors[];

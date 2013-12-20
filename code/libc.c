@@ -3,10 +3,19 @@
  */
 
 #include <libc.h>
-
 #include <types.h>
+#include <capsaleres.h>
+#include <errno.h>
 
 int errno;
+
+void perror(void) {
+  if (errno < MIN_ERRNO_VALUE || errno > MAX_ERRNO_VALUE) errno = 1;
+  write(1,"ERROR DESCRIPTION: ",19);
+  write(1, errors[errno - 1], strlen(errors[errno - 1]));
+  write(1,"\n",1);
+}
+
 
 void itoa(int a, char *b)
 {
@@ -89,7 +98,11 @@ int fork(void) {
         :
         : "ax"
 	);
-	return ret;
+	if(ret >= 0) return ret;
+    	else {
+		errno = -ret;
+		return -1;
+    	}
 }
 
 
@@ -112,12 +125,13 @@ int get_stats(int pid, struct stats *st) {
 	      "int $0x80;"
 	      "movl %%eax, %0;"
 	      : "=g" (ret)
-          : "g" (pid), "g"(st)
-          : "ax", "bx", "cx", "dx"
+        : "g" (pid), "g"(st)
+        : "ax", "bx", "cx", "dx"
     );
     if(ret >= 0) return ret;
     else {
-	    return -1;
+        errno = -ret;
+	      return -1;
     }
 }
 

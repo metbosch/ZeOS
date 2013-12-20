@@ -7,6 +7,7 @@
 #include <segment.h>
 #include <hardware.h>
 #include <sched.h>
+#include <capsaleres.h>
 
 Byte phys_mem[TOTAL_PAGES];
 

@@ -25,7 +25,6 @@ struct task_struct {
   struct stats estats;
   enum state_t estat;
   int info_semf;
-  int pos_dir;
 };
 
 union task_union {

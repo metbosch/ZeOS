@@ -34,7 +34,7 @@ union task_union {
 
 struct semaphore {
     int cont;
-    struct list_head *tasks;
+    struct list_head tasks;
     struct task_struct *owner;
 };
 

@@ -129,6 +129,12 @@ int sys_fork()
 void sys_exit()
 {  
   actualitzar_usuari_sistema(current());
+  int i;
+  for (i = 0; i < MAX_NUM_SEMAPHORES; ++i) {
+    if (semf[i].owner == current()) {
+      sys_sem_destroy_int(i);
+    }
+  }
   --cont_dir[calculate_DIR(current())];
   if (cont_dir[calculate_DIR(current())] <= 0) {
     free_user_pages(current());
@@ -208,11 +214,11 @@ int sys_sem_init(int n_sem, unsigned int value) {
     //value: initial value of the counter of the semaphore
     //returns: -1 if error, 0 if OK
     actualitzar_usuari_sistema(current());
-    if (n_sem < 0 || n_sem >= MAX_NUM_SEMAPHORES) return -1;
-    else if (semf[n_sem].owner != NULL) return -1;
+    if (n_sem < 0 || n_sem >= MAX_NUM_SEMAPHORES) return -EINVAL;
+    else if (semf[n_sem].owner != NULL) return -EBUSY;
     semf[n_sem].cont = value;
     semf[n_sem].owner = current();
-    INIT_LIST_HEAD(semf[n_sem].tasks);
+    INIT_LIST_HEAD(&semf[n_sem].tasks);
     actualitzar_sistema_usuari(current());
     return 0;
 }
@@ -220,12 +226,12 @@ int sys_sem_init(int n_sem, unsigned int value) {
 
 int sys_sem_wait(int n_sem) {
     actualitzar_usuari_sistema(current());
-    if (n_sem < 0 || n_sem >= MAX_NUM_SEMAPHORES) return -1;
-    else if (semf[n_sem].owner == NULL) return -1;
+    if (n_sem < 0 || n_sem >= MAX_NUM_SEMAPHORES) return -EINVAL;
+    else if (semf[n_sem].owner == NULL) return -EINVAL;
     --semf[n_sem].cont;
     if (semf[n_sem].cont < 0) {
        current()->info_semf = 0;
-       update_current_state_rr(semf[n_sem].tasks); 
+       update_current_state_rr(&semf[n_sem].tasks); 
        sched_next_rr();
     }
     actualitzar_sistema_usuari(current());
@@ -236,11 +242,11 @@ int sys_sem_signal(int n_sem) {
     //n_sem: identifier of the semaphore
     //returns: -1 if error, 0 if OK
     actualitzar_usuari_sistema(current());
-    if (n_sem < 0 || n_sem >= MAX_NUM_SEMAPHORES) return -1;
-    else if (semf[n_sem].owner == NULL) return -1;
+    if (n_sem < 0 || n_sem >= MAX_NUM_SEMAPHORES) return -EINVAL;
+    else if (semf[n_sem].owner == NULL) return -EINVAL;
     ++semf[n_sem].cont;
-    if (!list_empty(semf[n_sem].tasks)) {
-        struct list_head * lh = list_first(semf[n_sem].tasks);
+    if (!list_empty(&semf[n_sem].tasks)) {
+        struct list_head * lh = list_first(&semf[n_sem].tasks);
         struct task_struct *tsk = list_head_to_task_struct(lh);
         tsk->estat = ST_READY;
         list_del(lh);
@@ -254,17 +260,36 @@ int sys_sem_destroy (int n_sem) {
     //n_sem: identifier of the semaphore to destroy
     //returns: -1 if error, 0 if OK
     actualitzar_usuari_sistema(current());
-    if (n_sem < 0 || n_sem >= MAX_NUM_SEMAPHORES) return -1;
-    else if (semf[n_sem].owner == NULL || current() != semf[n_sem].owner) return -1;
-    while (!list_empty(semf[n_sem].tasks)) {
-        struct list_head * lh = list_first(semf[n_sem].tasks);
+    if (n_sem < 0 || n_sem >= MAX_NUM_SEMAPHORES) return -EINVAL;
+    else if (semf[n_sem].owner == NULL) return -EINVAL;
+    else if (current() != semf[n_sem].owner) return -EPERM;
+    while (!list_empty(&semf[n_sem].tasks)) {
+        struct list_head * lh = list_first(&semf[n_sem].tasks);
         struct task_struct *tsk = list_head_to_task_struct(lh);
         tsk->estat = ST_READY;
         tsk->info_semf = -1;
         list_del(lh);        
         list_add_tail(lh, &readyqueue);
-    }    
+    }
+    semf[n_sem].owner = NULL;
     actualitzar_sistema_usuari(current());
+    return 0;
+}
+
+
+int sys_sem_destroy_int (int n_sem) {
+    if (n_sem < 0 || n_sem >= MAX_NUM_SEMAPHORES) return -EINVAL;
+    else if (semf[n_sem].owner == NULL) return -EINVAL;
+    else if (current() != semf[n_sem].owner) return -EPERM;
+    while (!list_empty(&semf[n_sem].tasks)) {
+        struct list_head * lh = list_first(&semf[n_sem].tasks);
+        struct task_struct *tsk = list_head_to_task_struct(lh);
+        tsk->estat = ST_READY;
+        tsk->info_semf = -1;
+        list_del(lh);        
+        list_add_tail(lh, &readyqueue);
+    }
+    semf[n_sem].owner = NULL;
     return 0;
 }
 

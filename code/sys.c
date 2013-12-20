@@ -300,6 +300,11 @@ int sys_clone (void (*function)(void), void *stack) {
   actualitzar_usuari_sistema(current());
   int PID;
 
+  //Comprovem que el punter st sigui correcte
+  if (!access_ok(VERIFY_WRITE, stack,4) || !access_ok(VERIFY_READ, function, 4)){
+	  actualitzar_sistema_usuari(current());
+	  return -EFAULT;
+  }
   if (list_empty(&freequeue)){
  	actualitzar_sistema_usuari(current());
 	return -EAGAIN;
